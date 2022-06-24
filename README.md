@@ -13,5 +13,5 @@ python buildDatabase.py
 The repository references a lot of open-source repositories, and they are listed below:
 1. [CBIR](https://github.com/pochih/CBIR)
 2. [PythonSIFT](https://github.com/rmislam/PythonSIFT)
-3. 
+3. [Fly-LSH](https://github.com/tian-kun/Fly-LSH)
 Very thanks!

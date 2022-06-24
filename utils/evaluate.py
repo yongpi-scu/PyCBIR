@@ -1,48 +1,10 @@
 import numpy as np
 from utils.distance import distance
 from utils.metrics import AP
+from PIL import Image
+import os
 
-def search_single(query, database, depth=1, dist_func='d1'):
-    ''' infer a query, return it's ap
-
-      arguments
-        query       : a dict with three keys, see the template
-                      {
-                        'img': <path_to_img>,
-                        'cls': <img class>,
-                        'hist' <img histogram>
-                      }
-        samples     : a list of {
-                                  'img': <path_to_img>,
-                                  'cls': <img class>,
-                                  'hist' <img histogram>
-                                }
-        db          : an instance of class Database
-        sample_db_fn: a function making samples, should be given if Database != None
-        depth       : retrieved depth during inference, the default depth is equal to database size
-        d_type      : distance type
-    '''
-
-    q_img, q_cls, q_feat = query['img_name'], query['cls'], query['descriptor']
-    results = []
-    for idx, sample in enumerate(database):
-        s_img, s_cls, s_feat = sample['img_name'], sample['cls'], sample['descriptor']
-        if q_img == s_img:
-            continue
-        results.append({
-            'img': s_img,
-            'dis': distance(q_feat, s_feat, dist_func=dist_func),
-            'cls': s_cls
-        })
-    # import pdb;pdb.set_trace()
-    results = sorted(results, key=lambda x: x['dis'])
-    if depth and depth <= len(results):
-        results = results[:depth]
-    ap = AP(q_cls, results, sort=False)
-    return ap, results
-
-
-def evaluate_batch(online_database, offline_database, depth=3, dist_func='l1',verbose=True):
+def evaluate_batch(online_dataloader, offline_database, depth=3, dist_func='l1',verbose=True,save_dir=None):
     ''' infer the whole database
 
       arguments
@@ -51,13 +13,21 @@ def evaluate_batch(online_database, offline_database, depth=3, dist_func='l1',ve
         depth  : retrieved depth during inference, the default depth is equal to database size
         d_type : distance type
     '''
-    classes = online_database.get_class()
+    classes = online_dataloader.get_class()
     ret = {c: [] for c in classes}
 
-    for idx, query in enumerate(online_database):
+    for idx, sample in enumerate(online_dataloader):
         if verbose:
-            print("quering: %d/%d, %s"%(idx, len(online_database), query["img_name"]))
-        ap, _ = search_single(query, database=offline_database, depth=depth, dist_func=dist_func)
-        ret[query['cls']].append(ap)
-
+            print("quering: %d/%d, %s"%(idx, len(online_dataloader), sample["img_name"]))
+        results = offline_database.query(sample, depth=depth, dist_func=dist_func)
+        ap = AP(sample['cls'], results, sort=False)
+        ret[sample['cls']].append(ap)
+        
+        if save_dir:
+            # save results imgs
+            os.makedirs(save_dir, exist_ok=True)
+            imgs = [np.array(Image.open(sample["img_name"]))]
+            for result in results:
+                imgs.append(np.array(Image.open(result["img_name"])))
+            Image.fromarray(np.hstack(imgs)).save("%s/%s"%(save_dir, sample["img_name"].replace("/","@")))
     return ret
