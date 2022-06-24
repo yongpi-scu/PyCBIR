@@ -5,7 +5,7 @@ import numpy as np
 import cv2
 
 class SIFT:
-    def __init__(self, nfeatures=1, cache_dir="cache", normalize=True) -> None:
+    def __init__(self, nfeatures=0, cache_dir="cache", normalize=True) -> None:
         
         self.nfeatures = nfeatures  # histogram bins
         self.normalize = normalize  # distance type
@@ -47,8 +47,8 @@ class SIFT:
         if len(img.shape)!=2:
             raise ValueError("get a input img with shape %s, while this function require a input shape like [width, height, channels]" %str(img.shape))
 
-        keypoints, descripor = self.sift_extractor.detectAndCompute(img, None)
-        return descripor[:self.nfeatures]
+        keypoints, descriptor = self.sift_extractor.detectAndCompute(img, None)
+        return descriptor
 
     def __name__(self):
         return "SIFT"

@@ -55,6 +55,7 @@ class LSH(object):
     
     def insert(self, sample):
         for i, table in enumerate(self.hash_tables):
+            print(sample["descriptor"].shape)
             hash_codes = self._hash(sample["descriptor"], self.projection_matrices[i])
             for hash_code in hash_codes:
                 table[self.__array2string(hash_code)].append(sample)

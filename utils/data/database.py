@@ -4,6 +4,8 @@ from descriptors.local import SIFT
 from indexing.lsh import LSH
 from indexing.flsh import FLSH
 from indexing.linear import Linear
+from indexing.bow import BOW
+
 
 class Database:
     def __init__(self, dataloader, descriptor_method="ColorHistogram", indexing_method="lsh", index_dim=32):
@@ -18,8 +20,7 @@ class Database:
         self.index_dim = index_dim
         # init
         self.__init_indexHub()
-        for descriptor in self.descriptors:
-            self.indexHub.insert(descriptor)
+
     
     def __init_indexHub(self):
         # indexing methods for accelerate search process
@@ -27,17 +28,30 @@ class Database:
             self.indexHub = LSH(self.discriptor_dim, self.index_dim)
         elif self.indexing_method == "flsh":
             self.indexHub = FLSH(self.discriptor_dim, self.index_dim)
-        elif self.indexing_method == "bow":
-            pass
+        elif self.indexing_method == "bow+k64+lsh":
+            k = int(self.indexing_method.split("k")[1].split("+")[0])
+            self.bow_model = BOW(self.descriptors, k=k, batch_size=1000) 
+            # import pdb;pdb.set_trace()
+            for sample, tfidf in zip(self.descriptors,self.bow_model.get_features()):
+                sample["descriptor"]=tfidf
+            
+            self.indexHub = LSH(k, self.index_dim)
+            
         elif self.indexing_method in ["bruteforce", "linear"]:
             self.indexHub = Linear()
-            pass
         else:
             raise NotImplementedError(
                 "indexing method %s not implemented!" % self.indexing_method)
+        
+        for descriptor in self.descriptors:
+            self.indexHub.insert(descriptor)
     
     def query(self, sample, depth=3, dist_func="l0"):
         sample["descriptor"] = self.descriptor_func.extract_single(sample["img_array"])
+        print("shape1",sample["descriptor"].shape)
+        if hasattr(self, "bow_model"):
+            sample["descriptor"] = self.bow_model.convert(sample)
+        print("shape2",sample["descriptor"].shape)
         results = self.indexHub.indexing(sample, depth, dist_func)
         return results
     
